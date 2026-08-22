@@ -245,7 +245,7 @@ export default function Dashboard() {
                 cy="80"
                 r={radius}
                 className="stroke-slate-100"
-                strokeWidth="12"
+                strokeWidth="10"
                 fill="transparent"
               />
               <motion.circle
@@ -253,7 +253,7 @@ export default function Dashboard() {
                 cy="80"
                 r={radius}
                 className="stroke-violet-600"
-                strokeWidth="12"
+                strokeWidth="10"
                 fill="transparent"
                 strokeDasharray={circumference}
                 initial={{ strokeDashoffset: circumference }}
@@ -264,7 +264,7 @@ export default function Dashboard() {
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-3xl font-black text-slate-800">{completionPercent}%</span>
-              <span className="text-xxs text-slate-400 uppercase tracking-widest font-bold">Complete</span>
+              <span className="text-sm text-slate-400 uppercase tracking-widest font-bold">Completed</span>
             </div>
           </div>
         </GlassCard>

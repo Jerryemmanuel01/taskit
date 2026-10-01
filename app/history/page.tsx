@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, BarChart2, Clock, Filter, ListTodo, Award, HelpCircle } from "lucide-react";
+import { Calendar, BarChart2, Clock, Filter, ListTodo, Award, HelpCircle, Layers } from "lucide-react";
 import { api, getLoggedInUser } from "../../utils/api";
 import GlassCard from "../../components/GlassCard";
 
@@ -23,10 +23,10 @@ interface TimeLog {
 
 export default function HistoryPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"date" | "chore">("date");
+  const [activeTab, setActiveTab] = useState<"date" | "month" | "chore">("date");
   const [loading, setLoading] = useState(true);
   
-  // Date filter states
+  // Helpers
   const getLocalDateString = () => {
     const d = new Date();
     const year = d.getFullYear();
@@ -34,8 +34,22 @@ export default function HistoryPage() {
     const day = String(d.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
+
+  const getCurrentMonthString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}`;
+  };
+
+  // Date filter states
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [dateLogs, setDateLogs] = useState<TimeLog[]>([]);
+
+  // Month filter states
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthString());
+  const [monthLogs, setMonthLogs] = useState<TimeLog[]>([]);
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
 
   // Chore filter states
   const [chores, setChores] = useState<Chore[]>([]);
@@ -62,6 +76,12 @@ export default function HistoryPage() {
         setSelectedChoreId(choresData[0]._id);
       }
       
+      // Fetch stats to get available months
+      const statsRes = await api.get("/logs/stats");
+      if (statsRes.data.availableMonths) {
+        setAvailableMonths(statsRes.data.availableMonths);
+      }
+
       // Fetch today's logs for date filter tab
       await fetchDateLogs(selectedDate);
     } catch (err) {
@@ -80,6 +100,15 @@ export default function HistoryPage() {
     }
   };
 
+  const fetchMonthLogs = async (monthStr: string) => {
+    try {
+      const res = await api.get(`/logs?month=${monthStr}`);
+      setMonthLogs(res.data);
+    } catch (err) {
+      console.error("Error fetching logs for month:", err);
+    }
+  };
+
   const fetchChoreLogs = async (choreId: string) => {
     if (!choreId) return;
     try {
@@ -94,8 +123,10 @@ export default function HistoryPage() {
   useEffect(() => {
     if (activeTab === "date") {
       fetchDateLogs(selectedDate);
+    } else if (activeTab === "month") {
+      fetchMonthLogs(selectedMonth);
     }
-  }, [selectedDate, activeTab]);
+  }, [selectedDate, selectedMonth, activeTab]);
 
   useEffect(() => {
     if (activeTab === "chore" && selectedChoreId) {
@@ -106,10 +137,21 @@ export default function HistoryPage() {
   // Total daily minutes calculation
   const totalDailyMinutes = dateLogs.reduce((sum, log) => sum + log.minutes, 0);
 
+  // Total monthly minutes calculation
+  const totalMonthMinutes = monthLogs.reduce((sum, log) => sum + log.minutes, 0);
+  const totalMonthDays = new Set(monthLogs.map(l => l.date)).size;
+
   // Total chore minutes calculation
   const totalChoreMinutes = choreLogs.reduce((sum, log) => sum + log.minutes, 0);
 
   const selectedChore = chores.find(c => c._id === selectedChoreId);
+
+  const formatMonthLabel = (monthStr: string) => {
+    if (!monthStr || monthStr.length < 7) return monthStr;
+    const [y, m] = monthStr.split("-");
+    const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
+    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  };
 
   return (
     <main className="max-w-6xl mx-auto px-6 py-10 relative">
@@ -123,17 +165,17 @@ export default function HistoryPage() {
           Logs & History
         </h1>
         <p className="text-slate-500 mt-1.5 font-medium">
-          Filter and manage time logs by specific date or individual daily chore.
+          Filter and review historical time logs by date, month archive, or specific chore routines.
         </p>
       </div>
 
       {/* Tabs Menu */}
-      <div className="flex gap-4 border-b border-slate-200 pb-px mb-8">
+      <div className="flex flex-wrap gap-2 md:gap-4 border-b border-slate-200 pb-px mb-8">
         <button
           onClick={() => setActiveTab("date")}
           className={`flex items-center gap-2 px-5 py-3 border-b-2 font-bold text-sm transition-all cursor-pointer ${
             activeTab === "date"
-              ? "border-violet-650 text-violet-600"
+              ? "border-violet-600 text-violet-600"
               : "border-transparent text-slate-400 hover:text-slate-600"
           }`}
         >
@@ -141,10 +183,21 @@ export default function HistoryPage() {
           Filter by Date
         </button>
         <button
+          onClick={() => setActiveTab("month")}
+          className={`flex items-center gap-2 px-5 py-3 border-b-2 font-bold text-sm transition-all cursor-pointer ${
+            activeTab === "month"
+              ? "border-violet-600 text-violet-600"
+              : "border-transparent text-slate-400 hover:text-slate-600"
+          }`}
+        >
+          <Layers size={16} />
+          Filter by Month
+        </button>
+        <button
           onClick={() => setActiveTab("chore")}
           className={`flex items-center gap-2 px-5 py-3 border-b-2 font-bold text-sm transition-all cursor-pointer ${
             activeTab === "chore"
-              ? "border-violet-655 text-violet-600"
+              ? "border-violet-600 text-violet-600"
               : "border-transparent text-slate-400 hover:text-slate-600"
           }`}
         >
@@ -161,7 +214,7 @@ export default function HistoryPage() {
         </div>
       ) : (
         <AnimatePresence mode="wait">
-          {activeTab === "date" ? (
+          {activeTab === "date" && (
             <motion.div
               key="date-tab"
               initial={{ opacity: 0, y: 10 }}
@@ -186,7 +239,7 @@ export default function HistoryPage() {
                         type="date"
                         value={selectedDate}
                         onChange={(e) => setSelectedDate(e.target.value)}
-                        className="w-full px-4 py-3 bg-white border border-slate-205 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl outline-none text-slate-800 text-sm transition-all"
+                        className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl outline-none text-slate-800 text-sm transition-all"
                       />
                     </div>
                   </div>
@@ -209,7 +262,7 @@ export default function HistoryPage() {
               {/* Date Logs Table */}
               <div className="lg:col-span-2">
                 {dateLogs.length === 0 ? (
-                  <GlassCard className="p-10 text-center flex flex-col items-center justify-center border-dashed border-2 border-slate-205" hoverEffect={false}>
+                  <GlassCard className="p-10 text-center flex flex-col items-center justify-center border-dashed border-2 border-slate-200" hoverEffect={false}>
                     <Calendar size={40} className="text-slate-400 mb-4" />
                     <h3 className="text-lg font-bold text-slate-500">No time logged</h3>
                     <p className="text-slate-400 text-sm mt-1 max-w-sm">
@@ -243,7 +296,7 @@ export default function HistoryPage() {
                                 </p>
                               </div>
                               <div className="text-right">
-                                <span className={`text-2xl font-black ${isGoalMet ? "text-emerald-650" : "text-violet-600"}`}>
+                                <span className={`text-2xl font-black ${isGoalMet ? "text-emerald-600" : "text-violet-600"}`}>
                                   {log.minutes}m
                                 </span>
                                 <p className="text-xxs font-bold text-slate-400 uppercase tracking-wider mt-0.5">
@@ -267,7 +320,129 @@ export default function HistoryPage() {
                 )}
               </div>
             </motion.div>
-          ) : (
+          )}
+
+          {activeTab === "month" && (
+            <motion.div
+              key="month-tab"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+            >
+              {/* Month Filters Sidebar */}
+              <div className="lg:col-span-1">
+                <GlassCard className="p-6 bg-white/90" hoverEffect={false}>
+                  <h3 className="text-xl font-bold text-slate-800 mb-5 flex items-center gap-2">
+                    <Filter size={16} className="text-violet-500" />
+                    Select Month Archive
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                        Target Month
+                      </label>
+                      <select
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl outline-none text-slate-800 text-sm font-semibold transition-all"
+                      >
+                        {availableMonths.length > 0 ? (
+                          availableMonths.map((m) => (
+                            <option key={m} value={m}>
+                              {formatMonthLabel(m)}
+                            </option>
+                          ))
+                        ) : (
+                          <option value={getCurrentMonthString()}>
+                            {formatMonthLabel(getCurrentMonthString())}
+                          </option>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Summary card inside sidebar */}
+                  <div className="mt-8 pt-6 border-t border-slate-100 space-y-4">
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-violet-500/10 text-violet-600 border border-violet-500/20 flex items-center justify-center shrink-0">
+                        <Clock size={18} />
+                      </div>
+                      <div>
+                        <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">Total Active Time</p>
+                        <h4 className="text-2xl font-black text-slate-800">
+                          {(totalMonthMinutes / 60).toFixed(1)} hrs <span className="text-xs font-semibold text-slate-400">({totalMonthMinutes}m)</span>
+                        </h4>
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                        <Award size={18} />
+                      </div>
+                      <div>
+                        <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">Active Days Tracked</p>
+                        <h4 className="text-2xl font-black text-slate-800">{totalMonthDays} days</h4>
+                      </div>
+                    </div>
+                  </div>
+                </GlassCard>
+              </div>
+
+              {/* Month Logs List */}
+              <div className="lg:col-span-2">
+                {monthLogs.length === 0 ? (
+                  <GlassCard className="p-10 text-center flex flex-col items-center justify-center border-dashed border-2 border-slate-200" hoverEffect={false}>
+                    <Layers size={40} className="text-slate-400 mb-4" />
+                    <h3 className="text-lg font-bold text-slate-500">No logs for this month</h3>
+                    <p className="text-slate-400 text-sm mt-1 max-w-sm">
+                      There are no time logs saved for {formatMonthLabel(selectedMonth)}.
+                    </p>
+                  </GlassCard>
+                ) : (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-bold text-slate-400 uppercase tracking-wider mb-2">
+                      Monthly Breakdown - {formatMonthLabel(selectedMonth)} ({monthLogs.length} entries)
+                    </h3>
+                    <div className="space-y-3">
+                      {monthLogs.map((log) => {
+                        if (!log.chore) return null;
+                        const isGoalMet = log.minutes >= log.chore.targetMinutes;
+
+                        return (
+                          <GlassCard key={log._id} className="p-4 bg-white/80" hoverEffect={true}>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="text-base font-bold text-slate-800 capitalize leading-none">
+                                    {log.chore.name}
+                                  </h4>
+                                  <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-xxs font-semibold text-slate-500 uppercase">
+                                    {log.chore.category}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-400 font-semibold mt-1">
+                                  Date: {log.date}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <span className={`text-xl font-extrabold ${isGoalMet ? "text-emerald-600" : "text-violet-600"}`}>
+                                  {log.minutes}m
+                                </span>
+                              </div>
+                            </div>
+                          </GlassCard>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === "chore" && (
             <motion.div
               key="chore-tab"
               initial={{ opacity: 0, y: 10 }}
@@ -288,13 +463,13 @@ export default function HistoryPage() {
                       <p className="text-slate-400 text-xs">No active chores to select.</p>
                     ) : (
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-505 mb-2">
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
                           Chore Item
                         </label>
                         <select
                           value={selectedChoreId}
                           onChange={(e) => setSelectedChoreId(e.target.value)}
-                          className="w-full px-4 py-3 bg-white border border-slate-205 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl outline-none text-slate-700 text-sm transition-all"
+                          className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl outline-none text-slate-700 text-sm transition-all"
                         >
                           {chores.map(chore => (
                             <option key={chore._id} value={chore._id} className="bg-white text-slate-800">
@@ -307,9 +482,9 @@ export default function HistoryPage() {
                   </div>
 
                   {/* Summary card inside sidebar */}
-                  <div className="mt-8 pt-6 border-t border-slate-105 space-y-4">
+                  <div className="mt-8 pt-6 border-t border-slate-100 space-y-4">
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-indigo-500/10 text-indigo-650 border border-indigo-500/20 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-lg bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 flex items-center justify-center shrink-0">
                         <Clock size={18} />
                       </div>
                       <div>
@@ -319,7 +494,7 @@ export default function HistoryPage() {
                     </div>
 
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-650 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center justify-center shrink-0">
                         <Award size={18} />
                       </div>
                       <div>
@@ -334,15 +509,15 @@ export default function HistoryPage() {
               {/* Chore Logs Timeline */}
               <div className="lg:col-span-2">
                 {!selectedChoreId ? (
-                  <GlassCard className="p-10 text-center flex flex-col items-center justify-center border-dashed border-2 border-slate-205" hoverEffect={false}>
+                  <GlassCard className="p-10 text-center flex flex-col items-center justify-center border-dashed border-2 border-slate-200" hoverEffect={false}>
                     <HelpCircle size={40} className="text-slate-400 mb-4" />
-                    <h3 className="text-lg font-bold text-slate-550">No chore selected</h3>
+                    <h3 className="text-lg font-bold text-slate-500">No chore selected</h3>
                     <p className="text-slate-400 text-sm mt-1 max-w-sm">
                       Please select or create a chore routine to view its logs.
                     </p>
                   </GlassCard>
                 ) : choreLogs.length === 0 ? (
-                  <GlassCard className="p-10 text-center flex flex-col items-center justify-center border-dashed border-2 border-slate-205" hoverEffect={false}>
+                  <GlassCard className="p-10 text-center flex flex-col items-center justify-center border-dashed border-2 border-slate-200" hoverEffect={false}>
                     <Clock size={40} className="text-slate-400 mb-4" />
                     <h3 className="text-lg font-bold text-slate-500">No records found</h3>
                     <p className="text-slate-400 text-sm mt-1 max-w-sm">

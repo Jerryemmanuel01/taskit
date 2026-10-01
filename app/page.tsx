@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, CheckCircle, Clock, Award, Sparkles, ChevronRight, RefreshCw, PlusCircle, MinusCircle } from "lucide-react";
+import { Plus, CheckCircle, Clock, Award, Sparkles, ChevronRight, RefreshCw, Calendar, Filter, Zap } from "lucide-react";
 import { api, getLoggedInUser } from "../utils/api";
 import GlassCard from "../components/GlassCard";
 import Link from "next/link";
@@ -19,6 +19,22 @@ interface LogMap {
   [choreId: string]: number;
 }
 
+interface DashboardStats {
+  currentMonth: string;
+  selectedMonth: string;
+  monthlyTotalMinutes: number;
+  monthlyTotalHours: string;
+  peakDay: string;
+  peakMinutes: number;
+  daysTracked: number;
+  weeklyTotalMinutes: number;
+  weeklyTotalHours: string;
+  lifetimeTotalMinutes: number;
+  lifetimeTotalHours: string;
+  availableMonths: string[];
+  totalMinutes: number;
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -30,12 +46,24 @@ export default function Dashboard() {
   // Custom manual input state for each chore card
   const [customInputs, setCustomInputs] = useState<{ [choreId: string]: string }>({});
   
-  // Stats
-  const [stats, setStats] = useState({
-    totalMinutes: 0,
+  // Selected month filter for stats (defaults to current month)
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+
+  // Stats state
+  const [stats, setStats] = useState<DashboardStats>({
+    currentMonth: "",
+    selectedMonth: "",
+    monthlyTotalMinutes: 0,
+    monthlyTotalHours: "0.0",
     peakDay: "",
     peakMinutes: 0,
     daysTracked: 0,
+    weeklyTotalMinutes: 0,
+    weeklyTotalHours: "0.0",
+    lifetimeTotalMinutes: 0,
+    lifetimeTotalHours: "0.0",
+    availableMonths: [],
+    totalMinutes: 0,
   });
 
   const getLocalDateString = () => {
@@ -58,10 +86,10 @@ export default function Dashboard() {
     }
   }, [router]);
 
-  const fetchData = async () => {
+  const fetchData = async (monthOverride?: string) => {
     try {
       setLoading(true);
-      // Fetch chores
+      // Fetch active chores
       const choresRes = await api.get("/chores");
       setChores(choresRes.data);
 
@@ -76,14 +104,24 @@ export default function Dashboard() {
       });
       setTodayLogs(map);
 
-      // Fetch overall stats
-      const statsRes = await api.get("/logs/stats");
+      // Fetch dashboard stats (scoped to month)
+      const targetMonth = monthOverride || selectedMonth;
+      const statsUrl = targetMonth ? `/logs/stats?month=${targetMonth}` : "/logs/stats";
+      const statsRes = await api.get(statsUrl);
       setStats(statsRes.data);
+      if (!selectedMonth && statsRes.data.selectedMonth) {
+        setSelectedMonth(statsRes.data.selectedMonth);
+      }
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMonthChange = (newMonth: string) => {
+    setSelectedMonth(newMonth);
+    fetchData(newMonth);
   };
 
   const handleLogTime = async (choreId: string, currentMins: number, amount: number) => {
@@ -102,8 +140,10 @@ export default function Dashboard() {
         minutes: newMins,
       });
       
-      // Update overall stats background refresh
-      const statsRes = await api.get("/logs/stats");
+      // Background refresh stats for active selected month
+      const targetMonth = selectedMonth || stats.currentMonth;
+      const statsUrl = targetMonth ? `/logs/stats?month=${targetMonth}` : "/logs/stats";
+      const statsRes = await api.get(statsUrl);
       setStats(statsRes.data);
     } catch (err) {
       console.error("Error logging time:", err);
@@ -140,7 +180,9 @@ export default function Dashboard() {
         minutes,
       });
 
-      const statsRes = await api.get("/logs/stats");
+      const targetMonth = selectedMonth || stats.currentMonth;
+      const statsUrl = targetMonth ? `/logs/stats?month=${targetMonth}` : "/logs/stats";
+      const statsRes = await api.get(statsUrl);
       setStats(statsRes.data);
     } catch (err) {
       console.error("Error logging custom time:", err);
@@ -150,6 +192,17 @@ export default function Dashboard() {
         [choreId]: currentMins
       }));
     }
+  };
+
+  const formatMonthLabel = (monthStr: string, currentMonthStr?: string) => {
+    if (!monthStr || monthStr.length < 7) return monthStr;
+    const [y, m] = monthStr.split("-");
+    const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
+    const label = date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    if (currentMonthStr && monthStr === currentMonthStr) {
+      return `${label} (Current)`;
+    }
+    return label;
   };
 
   // Calculations
@@ -178,6 +231,8 @@ export default function Dashboard() {
     return "Outstanding! You've crushed all your daily chore goals today! 🎉";
   };
 
+  const isHistoricalMonth = selectedMonth && stats.currentMonth && selectedMonth !== stats.currentMonth;
+
   if (loading && chores.length === 0) {
     return (
       <div className="max-w-6xl mx-auto px-6 py-12 flex flex-col items-center justify-center min-h-[70vh]">
@@ -193,24 +248,69 @@ export default function Dashboard() {
       <div className="absolute top-20 left-10 w-96 h-96 rounded-full bg-violet-600/5 blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-20 right-10 w-96 h-96 rounded-full bg-indigo-600/5 blur-[120px] pointer-events-none"></div>
 
-      {/* Greeting and Refresh */}
+      {/* Greeting, Month Filter & Refresh */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-4xl font-extrabold tracking-tight text-slate-800 capitalize">
             Hey, {user?.username || "there"} 👋
           </h1>
-          <p className="text-slate-500 mt-1 font-medium">
-            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}
+          <p className="text-slate-500 mt-1 font-medium flex items-center gap-2">
+            <span>{new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}</span>
           </p>
         </div>
-        <button
-          onClick={fetchData}
-          className="self-start flex items-center gap-2 px-4 py-2 text-sm bg-white border border-slate-205 hover:bg-slate-50 text-slate-600 rounded-xl transition-all cursor-pointer shadow-sm shadow-slate-100/50"
-        >
-          <RefreshCw size={14} />
-          Refresh
-        </button>
+
+        <div className="flex items-center gap-3 self-start md:self-auto">
+          {/* Month Selector Filter */}
+          <div className="flex items-center gap-2 bg-white/90 border border-slate-200 px-3.5 py-2 rounded-xl shadow-xs">
+            <Filter size={15} className="text-violet-600 shrink-0" />
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">Month:</span>
+            <select
+              value={selectedMonth || stats.currentMonth || ""}
+              onChange={(e) => handleMonthChange(e.target.value)}
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer"
+            >
+              {stats.availableMonths && stats.availableMonths.length > 0 ? (
+                stats.availableMonths.map((m) => (
+                  <option key={m} value={m} className="bg-white text-slate-800">
+                    {formatMonthLabel(m, stats.currentMonth)}
+                  </option>
+                ))
+              ) : (
+                <option value={stats.currentMonth}>
+                  {formatMonthLabel(stats.currentMonth)}
+                </option>
+              )}
+            </select>
+          </div>
+
+          {/* Refresh Button */}
+          <button
+            onClick={() => fetchData()}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-all cursor-pointer shadow-xs"
+          >
+            <RefreshCw size={14} />
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {/* Historical Month Archive Banner */}
+      {isHistoricalMonth && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-800 text-sm font-medium flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Calendar size={18} className="text-amber-600 shrink-0" />
+            <span>
+              Viewing archived statistics for <strong>{formatMonthLabel(selectedMonth)}</strong>. Stats automatically reset at the start of every month.
+            </span>
+          </div>
+          <button
+            onClick={() => handleMonthChange(stats.currentMonth)}
+            className="text-xs font-bold bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-500 transition-colors shrink-0 cursor-pointer"
+          >
+            Back to Current Month
+          </button>
+        </div>
+      )}
 
       {/* Stats and Radial Ring Block */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
@@ -269,37 +369,67 @@ export default function Dashboard() {
           </div>
         </GlassCard>
 
-        {/* Global Lifetime Stats */}
+        {/* Dynamic Dashboard Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
-          <GlassCard className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-violet-500/10 text-violet-600 border border-violet-500/20 flex items-center justify-center shrink-0">
+          {/* 1. Monthly Active Hours */}
+          <GlassCard className="p-4 flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-violet-500/10 text-violet-600 border border-violet-500/20 flex items-center justify-center shrink-0">
+              <Calendar size={20} />
+            </div>
+            <div>
+              <p className="text-xxs font-bold text-slate-400 uppercase tracking-wider">
+                {isHistoricalMonth ? "Monthly Total" : "This Month Active"}
+              </p>
+              <h4 className="text-lg font-extrabold text-slate-800 mt-0.5">
+                {stats.monthlyTotalHours || "0.0"} hrs <span className="text-xs font-semibold text-slate-400">({stats.monthlyTotalMinutes || 0}m)</span>
+              </h4>
+              <p className="text-xxs font-semibold text-violet-600">
+                {formatMonthLabel(selectedMonth || stats.currentMonth)}
+              </p>
+            </div>
+          </GlassCard>
+
+          {/* 2. Weekly Active Hours */}
+          <GlassCard className="p-4 flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 flex items-center justify-center shrink-0">
               <Clock size={20} />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Lifetime Active</p>
-              <h4 className="text-xl font-bold text-slate-800 mt-0.5">{stats.totalMinutes} minutes</h4>
+              <p className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Weekly Active (This Week)</p>
+              <h4 className="text-lg font-extrabold text-slate-800 mt-0.5">
+                {stats.weeklyTotalHours || "0.0"} hrs <span className="text-xs font-semibold text-slate-400">({stats.weeklyTotalMinutes || 0}m)</span>
+              </h4>
+              <p className="text-xxs font-semibold text-indigo-600">Mon – Sun current week</p>
             </div>
           </GlassCard>
 
-          <GlassCard className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 flex items-center justify-center shrink-0">
+          {/* 3. Peak Productivity */}
+          <GlassCard className="p-4 flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 flex items-center justify-center shrink-0">
               <Award size={20} />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Peak Productivity</p>
-              <h4 className="text-xl font-bold text-slate-800 mt-0.5">
-                {stats.peakMinutes > 0 ? `${stats.peakMinutes}m (${stats.peakDay})` : "N/A"}
+              <p className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Peak Productivity</p>
+              <h4 className="text-lg font-extrabold text-slate-800 mt-0.5">
+                {stats.peakMinutes > 0 ? `${stats.peakMinutes}m` : "N/A"}
               </h4>
+              <p className="text-xxs font-semibold text-slate-400">
+                {stats.peakDay ? stats.peakDay : "No logs in selected month"}
+              </p>
             </div>
           </GlassCard>
 
-          <GlassCard className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center justify-center shrink-0">
+          {/* 4. Active Days Tracked */}
+          <GlassCard className="p-4 flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center justify-center shrink-0">
               <CheckCircle size={20} />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Days Tracked</p>
-              <h4 className="text-xl font-bold text-slate-800 mt-0.5">{stats.daysTracked} days</h4>
+              <p className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Days Tracked</p>
+              <h4 className="text-lg font-extrabold text-slate-800 mt-0.5">
+                {stats.daysTracked || 0} days
+              </h4>
+              <p className="text-xxs font-semibold text-emerald-600">Active in selected month</p>
             </div>
           </GlassCard>
         </div>
@@ -343,7 +473,7 @@ export default function Dashboard() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AnimatePresence mode="popLayout">
-            {chores.map((chore, index) => {
+            {chores.map((chore) => {
               const loggedMins = todayLogs[chore._id] || 0;
               const percent = Math.round((loggedMins / chore.targetMinutes) * 100);
               const isTargetMet = loggedMins >= chore.targetMinutes;
@@ -401,7 +531,7 @@ export default function Dashboard() {
                     <div className="grid grid-cols-4 gap-1.5">
                       <button
                         onClick={() => handleLogTime(chore._id, loggedMins, -10)}
-                        className="py-1.5 text-xxs font-bold bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-500 hover:text-red-650 rounded-lg transition-all cursor-pointer"
+                        className="py-1.5 text-xxs font-bold bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-500 hover:text-red-600 rounded-lg transition-all cursor-pointer"
                         title="-10m"
                       >
                         -10m

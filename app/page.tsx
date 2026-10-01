@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, CheckCircle, Clock, Award, Sparkles, ChevronRight, RefreshCw, Calendar, Filter, Zap } from "lucide-react";
+import { Plus, CheckCircle, Clock, Award, Sparkles, ChevronRight, RefreshCw, Calendar, Filter, Zap, Target, TrendingUp, Flame } from "lucide-react";
 import { api, getLoggedInUser } from "../utils/api";
 import GlassCard from "../components/GlassCard";
 import Link from "next/link";
@@ -214,21 +214,23 @@ export default function Dashboard() {
     return sum + chore.targetMinutes;
   }, 0);
 
+  const remainingTargetToday = Math.max(0, totalTargetToday - totalLoggedToday);
+
   const completionPercent = totalTargetToday > 0 
     ? Math.round((totalLoggedToday / totalTargetToday) * 100) 
     : 0;
 
   // SVG circle setup
-  const radius = 60;
+  const radius = 68;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (Math.min(completionPercent, 100) / 100) * circumference;
 
   const getMotivationMsg = () => {
-    if (chores.length === 0) return "Add some chores to begin your daily streak!";
-    if (totalLoggedToday === 0) return "Chore time! Log your first minutes to kickstart today.";
-    if (completionPercent < 50) return "Off to a good start! Step by step, you'll get there.";
-    if (completionPercent < 100) return "You're past the halfway mark! Keep pushing.";
-    return "Outstanding! You've crushed all your daily chore goals today! 🎉";
+    if (chores.length === 0) return "Add your daily routines below to build a productive momentum!";
+    if (totalLoggedToday === 0) return "Ready to take on today? Start logging your minutes to ignite your streak!";
+    if (completionPercent < 50) return "Great initial push! Keep going to conquer your daily targets.";
+    if (completionPercent < 100) return "You're in the home stretch! Almost reached 100% completion.";
+    return "All daily goals completed! Outstanding dedication today! 🎉";
   };
 
   const isHistoricalMonth = selectedMonth && stats.currentMonth && selectedMonth !== stats.currentMonth;
@@ -237,41 +239,43 @@ export default function Dashboard() {
     return (
       <div className="max-w-6xl mx-auto px-6 py-12 flex flex-col items-center justify-center min-h-[70vh]">
         <div className="w-12 h-12 rounded-full border-4 border-violet-600/20 border-t-violet-600 animate-spin mb-4"></div>
-        <p className="text-slate-500 font-semibold">Loading your dashboard...</p>
+        <p className="text-slate-500 font-semibold">Loading your workspace...</p>
       </div>
     );
   }
 
   return (
-    <main className="max-w-6xl mx-auto px-6 py-10 relative">
-      {/* Background radial glows */}
-      <div className="absolute top-20 left-10 w-96 h-96 rounded-full bg-violet-600/5 blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-20 right-10 w-96 h-96 rounded-full bg-indigo-600/5 blur-[120px] pointer-events-none"></div>
+    <main className="max-w-6xl mx-auto px-6 py-8 relative">
+      {/* Background glowing radial gradients */}
+      <div className="absolute top-10 left-1/4 w-96 h-96 rounded-full bg-violet-500/10 blur-[130px] pointer-events-none"></div>
+      <div className="absolute top-40 right-10 w-96 h-96 rounded-full bg-indigo-500/10 blur-[130px] pointer-events-none"></div>
 
-      {/* Greeting, Month Filter & Refresh */}
+      {/* Top Header Bar & Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-slate-800 capitalize">
-            Hey, {user?.username || "there"} 👋
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}
+            </span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 capitalize">
+            Welcome back, <span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">{user?.username || "there"}</span> 👋
           </h1>
-          <p className="text-slate-500 mt-1 font-medium flex items-center gap-2">
-            <span>{new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}</span>
-          </p>
         </div>
 
         <div className="flex items-center gap-3 self-start md:self-auto">
-          {/* Month Selector Filter */}
-          <div className="flex items-center gap-2 bg-white/90 border border-slate-200 px-3.5 py-2 rounded-xl shadow-xs">
-            <Filter size={15} className="text-violet-600 shrink-0" />
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">Month:</span>
+          {/* Custom Styled Month Selector Pill */}
+          <div className="flex items-center gap-2 bg-white/90 backdrop-blur-md border border-slate-200/80 px-3.5 py-2 rounded-2xl shadow-xs hover:border-violet-300 transition-all">
+            <Calendar size={16} className="text-violet-600 shrink-0" />
             <select
               value={selectedMonth || stats.currentMonth || ""}
               onChange={(e) => handleMonthChange(e.target.value)}
-              className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer"
+              className="bg-transparent text-xs font-extrabold text-slate-700 outline-none cursor-pointer pr-1"
             >
               {stats.availableMonths && stats.availableMonths.length > 0 ? (
                 stats.availableMonths.map((m) => (
-                  <option key={m} value={m} className="bg-white text-slate-800">
+                  <option key={m} value={m} className="bg-white text-slate-800 font-semibold">
                     {formatMonthLabel(m, stats.currentMonth)}
                   </option>
                 ))
@@ -286,188 +290,248 @@ export default function Dashboard() {
           {/* Refresh Button */}
           <button
             onClick={() => fetchData()}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-all cursor-pointer shadow-xs"
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-700 rounded-2xl transition-all cursor-pointer shadow-xs active:scale-95"
+            title="Refresh statistics"
           >
             <RefreshCw size={14} />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
       </div>
 
       {/* Historical Month Archive Banner */}
       {isHistoricalMonth && (
-        <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-800 text-sm font-medium flex items-center justify-between gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-900 text-sm font-medium flex items-center justify-between gap-4 backdrop-blur-xs"
+        >
           <div className="flex items-center gap-3">
-            <Calendar size={18} className="text-amber-600 shrink-0" />
+            <Filter size={18} className="text-amber-600 shrink-0" />
             <span>
-              Viewing archived statistics for <strong>{formatMonthLabel(selectedMonth)}</strong>. Stats automatically reset at the start of every month.
+              Viewing archived monthly metrics for <strong>{formatMonthLabel(selectedMonth)}</strong>. Statistics auto-reset at the start of each month.
             </span>
           </div>
           <button
             onClick={() => handleMonthChange(stats.currentMonth)}
-            className="text-xs font-bold bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-500 transition-colors shrink-0 cursor-pointer"
+            className="text-xs font-bold bg-amber-600 text-white px-3.5 py-1.5 rounded-xl hover:bg-amber-500 transition-colors shrink-0 cursor-pointer shadow-xs"
           >
-            Back to Current Month
+            Switch to Current Month
           </button>
-        </div>
+        </motion.div>
       )}
 
-      {/* Stats and Radial Ring Block */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-        {/* Radial Progress Ring */}
-        <GlassCard className="lg:col-span-2 flex flex-col md:flex-row items-center justify-between gap-8 p-8" hoverEffect={false}>
-          <div className="flex-1 space-y-4 text-center md:text-left">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20 text-xs font-bold uppercase tracking-wider">
-              <Sparkles size={12} />
-              Today's Focus
-            </div>
-            <h2 className="text-3xl font-extrabold text-slate-800">Daily Cumulative Progress</h2>
-            <p className="text-slate-500 text-sm max-w-md leading-relaxed">
-              {getMotivationMsg()}
-            </p>
-            <div className="flex flex-wrap justify-center md:justify-start gap-4 pt-2">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-violet-600"></div>
-                <span className="text-xs font-semibold text-slate-600">Logged: {totalLoggedToday}m</span>
+      {/* 4-KPI High Efficiency Executive Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* KPI 1: Monthly Total */}
+        <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.2 }}>
+          <GlassCard className="p-5 relative overflow-hidden bg-white/90 border border-slate-200/80">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                {isHistoricalMonth ? "Monthly Archive" : "This Month"}
+              </span>
+              <div className="w-9 h-9 rounded-xl bg-violet-600/10 text-violet-600 border border-violet-500/20 flex items-center justify-center">
+                <Calendar size={18} />
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-slate-300"></div>
-                <span className="text-xs font-semibold text-slate-600">Target: {totalTargetToday}m</span>
+            </div>
+            <div className="mt-3">
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                {stats.monthlyTotalHours || "0.0"} <span className="text-sm font-bold text-slate-500">hrs</span>
+              </h3>
+              <p className="text-xs font-semibold text-violet-600 mt-1 flex items-center gap-1">
+                <span>{stats.monthlyTotalMinutes || 0} total mins</span>
+              </p>
+            </div>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
+              <div className="bg-gradient-to-r from-violet-600 to-indigo-600 h-full rounded-full" style={{ width: "100%" }}></div>
+            </div>
+          </GlassCard>
+        </motion.div>
+
+        {/* KPI 2: Weekly Total */}
+        <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.2 }}>
+          <GlassCard className="p-5 relative overflow-hidden bg-white/90 border border-slate-200/80">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                This Week
+              </span>
+              <div className="w-9 h-9 rounded-xl bg-blue-600/10 text-blue-600 border border-blue-500/20 flex items-center justify-center">
+                <Clock size={18} />
+              </div>
+            </div>
+            <div className="mt-3">
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                {stats.weeklyTotalHours || "0.0"} <span className="text-sm font-bold text-slate-500">hrs</span>
+              </h3>
+              <p className="text-xs font-semibold text-blue-600 mt-1">
+                {stats.weeklyTotalMinutes || 0} mins logged
+              </p>
+            </div>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full rounded-full" style={{ width: `${Math.min(100, Math.round(((stats.weeklyTotalMinutes || 0) / 600) * 100))}%` }}></div>
+            </div>
+          </GlassCard>
+        </motion.div>
+
+        {/* KPI 3: Peak Productivity */}
+        <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.2 }}>
+          <GlassCard className="p-5 relative overflow-hidden bg-white/90 border border-slate-200/80">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                Peak Output
+              </span>
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 flex items-center justify-center">
+                <Flame size={18} />
+              </div>
+            </div>
+            <div className="mt-3">
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                {stats.peakMinutes > 0 ? `${stats.peakMinutes}m` : "N/A"}
+              </h3>
+              <p className="text-xs font-semibold text-slate-500 mt-1 truncate" title={stats.peakDay}>
+                {stats.peakDay ? `Best: ${stats.peakDay}` : "No records in month"}
+              </p>
+            </div>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
+              <div className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full" style={{ width: stats.peakMinutes > 0 ? "100%" : "0%" }}></div>
+            </div>
+          </GlassCard>
+        </motion.div>
+
+        {/* KPI 4: Active Days Tracked */}
+        <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.2 }}>
+          <GlassCard className="p-5 relative overflow-hidden bg-white/90 border border-slate-200/80">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                Active Days
+              </span>
+              <div className="w-9 h-9 rounded-xl bg-emerald-600/10 text-emerald-600 border border-emerald-500/20 flex items-center justify-center">
+                <CheckCircle size={18} />
+              </div>
+            </div>
+            <div className="mt-3">
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                {stats.daysTracked || 0} <span className="text-sm font-bold text-slate-500">Days</span>
+              </h3>
+              <p className="text-xs font-semibold text-emerald-600 mt-1">
+                Month consistency
+              </p>
+            </div>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
+              <div className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full" style={{ width: `${Math.min(100, (stats.daysTracked / 30) * 100)}%` }}></div>
+            </div>
+          </GlassCard>
+        </motion.div>
+      </div>
+
+      {/* Featured Today's Cumulative Focus Card */}
+      <GlassCard className="p-8 mb-10 bg-gradient-to-br from-white via-slate-50/50 to-violet-50/20 border border-slate-200/80" hoverEffect={false}>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+          {/* Left Text & Breakdown Details */}
+          <div className="flex-1 space-y-4 text-center md:text-left">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-violet-600/10 text-violet-600 border border-violet-500/20 text-xs font-extrabold uppercase tracking-wider">
+              <Sparkles size={14} />
+              Today's Cumulative Goal
+            </div>
+
+            <div>
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">Daily Cumulative Progress</h2>
+              <p className="text-slate-500 text-sm mt-1 max-w-lg leading-relaxed font-medium">
+                {getMotivationMsg()}
+              </p>
+            </div>
+
+            {/* Quick Metrics Chips */}
+            <div className="grid grid-cols-3 gap-3 pt-2 max-w-md mx-auto md:mx-0">
+              <div className="p-3 rounded-2xl bg-white border border-slate-200/80 text-center md:text-left shadow-2xs">
+                <span className="text-xxs font-extrabold uppercase tracking-wider text-slate-400 block">Logged</span>
+                <span className="text-lg font-black text-violet-600">{totalLoggedToday}m</span>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-white border border-slate-200/80 text-center md:text-left shadow-2xs">
+                <span className="text-xxs font-extrabold uppercase tracking-wider text-slate-400 block">Target</span>
+                <span className="text-lg font-black text-slate-700">{totalTargetToday}m</span>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-white border border-slate-200/80 text-center md:text-left shadow-2xs">
+                <span className="text-xxs font-extrabold uppercase tracking-wider text-slate-400 block">Remaining</span>
+                <span className={`text-lg font-black ${remainingTargetToday === 0 ? "text-emerald-600" : "text-amber-600"}`}>
+                  {remainingTargetToday}m
+                </span>
               </div>
             </div>
           </div>
 
-          {/* SVG Progress Circle */}
-          <div className="relative shrink-0 flex items-center justify-center w-40 h-40">
+          {/* SVG Animated Radial Gauge */}
+          <div className="relative shrink-0 flex items-center justify-center w-48 h-48">
             <svg className="w-full h-full -rotate-90">
               <circle
-                cx="80"
-                cy="80"
+                cx="96"
+                cy="96"
                 r={radius}
                 className="stroke-slate-100"
-                strokeWidth="10"
+                strokeWidth="12"
                 fill="transparent"
               />
               <motion.circle
-                cx="80"
-                cy="80"
+                cx="96"
+                cy="96"
                 r={radius}
                 className="stroke-violet-600"
-                strokeWidth="10"
+                strokeWidth="12"
                 fill="transparent"
                 strokeDasharray={circumference}
                 initial={{ strokeDashoffset: circumference }}
                 animate={{ strokeDashoffset }}
-                transition={{ duration: 1, ease: "easeOut" }}
+                transition={{ duration: 1.2, ease: "easeOut" }}
                 strokeLinecap="round"
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-3xl font-black text-slate-800">{completionPercent}%</span>
-              <span className="text-sm text-slate-400 uppercase tracking-widest font-bold">Completed</span>
+              <span className="text-4xl font-black text-slate-900 tracking-tight">{completionPercent}%</span>
+              <span className="text-xxs font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">Completed</span>
             </div>
           </div>
-        </GlassCard>
-
-        {/* Dynamic Dashboard Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
-          {/* 1. Monthly Active Hours */}
-          <GlassCard className="p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-violet-500/10 text-violet-600 border border-violet-500/20 flex items-center justify-center shrink-0">
-              <Calendar size={20} />
-            </div>
-            <div>
-              <p className="text-xxs font-bold text-slate-400 uppercase tracking-wider">
-                {isHistoricalMonth ? "Monthly Total" : "This Month Active"}
-              </p>
-              <h4 className="text-lg font-extrabold text-slate-800 mt-0.5">
-                {stats.monthlyTotalHours || "0.0"} hrs <span className="text-xs font-semibold text-slate-400">({stats.monthlyTotalMinutes || 0}m)</span>
-              </h4>
-              <p className="text-xxs font-semibold text-violet-600">
-                {formatMonthLabel(selectedMonth || stats.currentMonth)}
-              </p>
-            </div>
-          </GlassCard>
-
-          {/* 2. Weekly Active Hours */}
-          <GlassCard className="p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 flex items-center justify-center shrink-0">
-              <Clock size={20} />
-            </div>
-            <div>
-              <p className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Weekly Active (This Week)</p>
-              <h4 className="text-lg font-extrabold text-slate-800 mt-0.5">
-                {stats.weeklyTotalHours || "0.0"} hrs <span className="text-xs font-semibold text-slate-400">({stats.weeklyTotalMinutes || 0}m)</span>
-              </h4>
-              <p className="text-xxs font-semibold text-indigo-600">Mon – Sun current week</p>
-            </div>
-          </GlassCard>
-
-          {/* 3. Peak Productivity */}
-          <GlassCard className="p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 flex items-center justify-center shrink-0">
-              <Award size={20} />
-            </div>
-            <div>
-              <p className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Peak Productivity</p>
-              <h4 className="text-lg font-extrabold text-slate-800 mt-0.5">
-                {stats.peakMinutes > 0 ? `${stats.peakMinutes}m` : "N/A"}
-              </h4>
-              <p className="text-xxs font-semibold text-slate-400">
-                {stats.peakDay ? stats.peakDay : "No logs in selected month"}
-              </p>
-            </div>
-          </GlassCard>
-
-          {/* 4. Active Days Tracked */}
-          <GlassCard className="p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center justify-center shrink-0">
-              <CheckCircle size={20} />
-            </div>
-            <div>
-              <p className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Days Tracked</p>
-              <h4 className="text-lg font-extrabold text-slate-800 mt-0.5">
-                {stats.daysTracked || 0} days
-              </h4>
-              <p className="text-xxs font-semibold text-emerald-600">Active in selected month</p>
-            </div>
-          </GlassCard>
         </div>
-      </div>
+      </GlassCard>
 
-      {/* Daily Chores Title */}
+      {/* Daily Chores Section Title */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-          Daily Chores Tracker
-          <span className="text-sm font-semibold text-violet-600 bg-violet-500/10 px-2.5 py-0.5 rounded-full border border-violet-500/20">
-            {chores.length} active
-          </span>
-        </h2>
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            Daily Chores Tracker
+            <span className="text-xs font-bold text-violet-600 bg-violet-600/10 px-3 py-1 rounded-full border border-violet-500/20">
+              {chores.length} active
+            </span>
+          </h2>
+          <p className="text-xs font-semibold text-slate-400 mt-0.5">Log time entries directly to update your daily focus stats</p>
+        </div>
+        
         <Link
           href="/chores"
-          className="flex items-center gap-1.5 text-sm font-bold text-violet-600 hover:text-violet-500 transition-colors text-decoration-none group"
+          className="flex items-center gap-1.5 text-xs font-extrabold text-violet-600 hover:text-violet-500 bg-violet-50 px-3.5 py-2 rounded-xl border border-violet-200 transition-all text-decoration-none group"
         >
-          Manage Chores
-          <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+          Manage Routines
+          <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
         </Link>
       </div>
 
       {/* Grid of Chore Cards */}
       {chores.length === 0 ? (
-        <GlassCard className="p-10 text-center flex flex-col items-center justify-center border-dashed border-2 border-slate-200" hoverEffect={false}>
-          <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-4">
-            <Award size={24} className="text-slate-400" />
+        <GlassCard className="p-12 text-center flex flex-col items-center justify-center border-dashed border-2 border-slate-200" hoverEffect={false}>
+          <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-4 shadow-2xs">
+            <Target size={28} className="text-slate-400" />
           </div>
-          <h3 className="text-lg font-bold text-slate-600">No chores set up yet</h3>
-          <p className="text-slate-500 text-sm mt-1 max-w-sm">
-            To start tracking daily minutes, you must list the chore routines you do daily.
+          <h3 className="text-lg font-extrabold text-slate-700">No active routines configured</h3>
+          <p className="text-slate-400 text-sm mt-1 max-w-sm">
+            Create daily chore routines to start tracking time spent and building daily momentum.
           </p>
           <Link
             href="/chores"
-            className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-bold text-white shadow-lg shadow-violet-600/25 hover:shadow-violet-600/35 transition-all text-decoration-none"
+            className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-xs font-bold text-white shadow-lg shadow-violet-600/25 transition-all text-decoration-none"
           >
             <Plus size={16} />
-            Add Your First Chore
+            Add First Chore Routine
           </Link>
         </GlassCard>
       ) : (
@@ -479,101 +543,100 @@ export default function Dashboard() {
               const isTargetMet = loggedMins >= chore.targetMinutes;
 
               return (
-                <GlassCard key={chore._id} className="flex flex-col justify-between min-h-[250px] relative overflow-hidden bg-white/80" hoverEffect={true}>
-                  {/* Glowing Top line indicator */}
-                  <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${
-                    isTargetMet ? "from-emerald-500 to-teal-500" : "from-violet-500 to-indigo-500"
+                <GlassCard key={chore._id} className="flex flex-col justify-between min-h-[260px] relative overflow-hidden bg-white/90 border border-slate-200/80" hoverEffect={true}>
+                  {/* Top Glowing Gradient Accent Bar */}
+                  <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${
+                    isTargetMet ? "from-emerald-500 via-teal-400 to-emerald-600" : "from-violet-600 via-indigo-500 to-purple-600"
                   }`}></div>
 
-                  <div className="space-y-4">
-                    {/* Category tag & check */}
+                  <div className="space-y-4 pt-1">
+                    {/* Category tag & status */}
                     <div className="flex items-center justify-between">
-                      <span className="px-2.5 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-xxs font-bold text-slate-500 uppercase tracking-wider">
+                      <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200/80 text-xxs font-extrabold text-slate-500 uppercase tracking-wider">
                         {chore.category}
                       </span>
                       {isTargetMet && (
-                        <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                          <CheckCircle size={12} className="text-emerald-500" />
+                        <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-extrabold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+                          <CheckCircle size={13} className="text-emerald-500" />
                           Target Met
                         </div>
                       )}
                     </div>
 
-                    {/* Title and Target */}
+                    {/* Chore Title and Target */}
                     <div>
-                      <h3 className="text-xl font-bold text-slate-800 leading-tight capitalize">{chore.name}</h3>
+                      <h3 className="text-xl font-extrabold text-slate-800 leading-tight capitalize">{chore.name}</h3>
                       <p className="text-xs text-slate-400 font-semibold mt-1">Goal: {chore.targetMinutes} mins/day</p>
                     </div>
 
-                    {/* Progress details */}
+                    {/* Progress Bar & Percentage */}
                     <div>
-                      <div className="flex justify-between text-xs font-bold mb-1.5">
-                        <span className="text-slate-500">Time logged: {loggedMins}m</span>
+                      <div className="flex justify-between text-xs font-extrabold mb-1.5">
+                        <span className="text-slate-600">Logged: {loggedMins}m</span>
                         <span className={isTargetMet ? "text-emerald-600" : "text-violet-600"}>{percent}%</span>
                       </div>
-                      {/* Bar indicator */}
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.min(percent, 100)}%` }}
                           transition={{ duration: 0.6, ease: "easeOut" }}
                           className={`h-full rounded-full bg-gradient-to-r ${
-                            isTargetMet ? "from-emerald-500 to-teal-400" : "from-violet-500 to-indigo-400"
+                            isTargetMet ? "from-emerald-500 to-teal-400" : "from-violet-600 to-indigo-500"
                           }`}
                         ></motion.div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Increment and input section */}
-                  <div className="mt-6 pt-5 border-t border-slate-100 space-y-4">
+                  {/* Increment Quick Buttons & Manual Set */}
+                  <div className="mt-6 pt-4 border-t border-slate-100 space-y-3">
                     {/* Quick increment buttons */}
                     <div className="grid grid-cols-4 gap-1.5">
                       <button
                         onClick={() => handleLogTime(chore._id, loggedMins, -10)}
-                        className="py-1.5 text-xxs font-bold bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-500 hover:text-red-600 rounded-lg transition-all cursor-pointer"
+                        className="py-1.5 text-xxs font-extrabold bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-500 hover:text-red-600 rounded-xl transition-all cursor-pointer"
                         title="-10m"
                       >
                         -10m
                       </button>
                       <button
                         onClick={() => handleLogTime(chore._id, loggedMins, 5)}
-                        className="py-1.5 text-xxs font-bold bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-600 hover:text-violet-600 rounded-lg transition-all cursor-pointer"
+                        className="py-1.5 text-xxs font-extrabold bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700 hover:text-violet-600 rounded-xl transition-all cursor-pointer"
                         title="+5m"
                       >
                         +5m
                       </button>
                       <button
                         onClick={() => handleLogTime(chore._id, loggedMins, 15)}
-                        className="py-1.5 text-xxs font-bold bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-600 hover:text-violet-600 rounded-lg transition-all cursor-pointer"
+                        className="py-1.5 text-xxs font-extrabold bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700 hover:text-violet-600 rounded-xl transition-all cursor-pointer"
                         title="+15m"
                       >
                         +15m
                       </button>
                       <button
                         onClick={() => handleLogTime(chore._id, loggedMins, 30)}
-                        className="py-1.5 text-xxs font-bold bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-600 hover:text-violet-600 rounded-lg transition-all cursor-pointer"
+                        className="py-1.5 text-xxs font-extrabold bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700 hover:text-violet-600 rounded-xl transition-all cursor-pointer"
                         title="+30m"
                       >
                         +30m
                       </button>
                     </div>
 
-                    {/* Manual input */}
+                    {/* Custom input set */}
                     <div className="flex gap-2">
                       <input
                         type="number"
-                        placeholder="Set custom min"
+                        placeholder="Custom min"
                         value={customInputs[chore._id] || ""}
                         onChange={(e) => setCustomInputs(prev => ({ ...prev, [chore._id]: e.target.value }))}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") handleCustomInputSubmit(chore._id, loggedMins);
                         }}
-                        className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none text-slate-800 placeholder-slate-400 focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/10"
+                        className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold outline-none text-slate-800 placeholder-slate-400 focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20"
                       />
                       <button
                         onClick={() => handleCustomInputSubmit(chore._id, loggedMins)}
-                        className="px-3.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-lg transition-all cursor-pointer border border-transparent"
+                        className="px-4 bg-violet-600 hover:bg-violet-500 text-white text-xs font-extrabold rounded-xl transition-all cursor-pointer border border-transparent shadow-2xs"
                       >
                         Set
                       </button>

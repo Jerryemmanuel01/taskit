@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, CheckCircle, Clock, Award, Sparkles, ChevronRight, RefreshCw, Calendar, Filter, Zap, Target, TrendingUp, Flame } from "lucide-react";
+import { Plus, CheckCircle, Clock, Award, Sparkles, ChevronRight, RefreshCw, Calendar, Filter, Zap, Target, TrendingUp, Flame, History } from "lucide-react";
 import { api, getLoggedInUser } from "../utils/api";
 import GlassCard from "../components/GlassCard";
+import LogPastTaskModal from "../components/LogPastTaskModal";
 import Link from "next/link";
 
 interface Chore {
@@ -48,6 +49,10 @@ export default function Dashboard() {
   
   // Selected month filter for stats (defaults to current month)
   const [selectedMonth, setSelectedMonth] = useState<string>("");
+
+  // Modal & Toast states for logging past tasks
+  const [isPastModalOpen, setIsPastModalOpen] = useState(false);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   // Stats state
   const [stats, setStats] = useState<DashboardStats>({
@@ -264,7 +269,17 @@ export default function Dashboard() {
           </h1>
         </div>
 
-        <div className="flex items-center gap-3 self-start md:self-auto">
+        <div className="flex flex-wrap items-center gap-3 self-start md:self-auto">
+          {/* Log Past Task Quick Modal Button */}
+          <button
+            onClick={() => setIsPastModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-xs font-extrabold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-2xl transition-all cursor-pointer shadow-md shadow-violet-500/20 active:scale-95"
+            title="Log task completed on a previous day"
+          >
+            <History size={15} />
+            <span>Log Past Task</span>
+          </button>
+
           {/* Custom Styled Month Selector Pill */}
           <div className="flex items-center gap-2 bg-white/90 backdrop-blur-md border border-slate-200/80 px-3.5 py-2 rounded-2xl shadow-xs hover:border-violet-300 transition-all">
             <Calendar size={16} className="text-violet-600 shrink-0" />
@@ -298,6 +313,29 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* Success Notification Banner */}
+      <AnimatePresence>
+        {successToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-8 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-900 text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 shadow-xs"
+          >
+            <div className="flex items-center gap-2.5">
+              <CheckCircle size={18} className="text-emerald-600 shrink-0" />
+              <span>{successToast}</span>
+            </div>
+            <button
+              onClick={() => setSuccessToast(null)}
+              className="text-emerald-700 hover:text-emerald-900 text-xs font-bold px-2 py-1 rounded-lg hover:bg-emerald-500/10 cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Historical Month Archive Banner */}
       {isHistoricalMonth && (
@@ -648,6 +686,20 @@ export default function Dashboard() {
           </AnimatePresence>
         </div>
       )}
+
+      {/* Log Past Task Quick Modal */}
+      <LogPastTaskModal
+        isOpen={isPastModalOpen}
+        onClose={() => setIsPastModalOpen(false)}
+        chores={chores}
+        onSuccess={(msg) => {
+          fetchData();
+          if (msg) {
+            setSuccessToast(msg);
+            setTimeout(() => setSuccessToast(null), 4500);
+          }
+        }}
+      />
     </main>
   );
 }

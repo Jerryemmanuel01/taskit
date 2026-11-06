@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, BarChart2, Clock, Filter, ListTodo, Award, HelpCircle, Layers } from "lucide-react";
+import { Calendar, BarChart2, Clock, Filter, ListTodo, Award, HelpCircle, Layers, Plus, CheckCircle } from "lucide-react";
 import { api, getLoggedInUser } from "../../utils/api";
 import GlassCard from "../../components/GlassCard";
+import LogPastTaskModal from "../../components/LogPastTaskModal";
 
 interface Chore {
   _id: string;
@@ -55,6 +56,10 @@ export default function HistoryPage() {
   const [chores, setChores] = useState<Chore[]>([]);
   const [selectedChoreId, setSelectedChoreId] = useState<string>("");
   const [choreLogs, setChoreLogs] = useState<TimeLog[]>([]);
+
+  // Modal & Toast states for logging past tasks
+  const [isPastModalOpen, setIsPastModalOpen] = useState(false);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   useEffect(() => {
     const loggedUser = getLoggedInUser();
@@ -159,15 +164,48 @@ export default function HistoryPage() {
       <div className="absolute top-20 left-10 w-96 h-96 rounded-full bg-violet-600/5 blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-20 right-10 w-96 h-96 rounded-full bg-indigo-600/5 blur-[120px] pointer-events-none"></div>
 
-      <div className="mb-8">
-        <h1 className="text-4xl font-extrabold tracking-tight text-slate-800 flex items-center gap-3">
-          <BarChart2 className="text-violet-600" size={32} />
-          Logs & History
-        </h1>
-        <p className="text-slate-500 mt-1.5 font-medium">
-          Filter and review historical time logs by date, month archive, or specific chore routines.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-4xl font-extrabold tracking-tight text-slate-800 flex items-center gap-3">
+            <BarChart2 className="text-violet-600" size={32} />
+            Logs & History
+          </h1>
+          <p className="text-slate-500 mt-1.5 font-medium">
+            Filter and review historical time logs by date, month archive, or specific chore routines.
+          </p>
+        </div>
+
+        <button
+          onClick={() => setIsPastModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 text-xs font-extrabold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-2xl transition-all cursor-pointer shadow-md shadow-violet-500/20 active:scale-95 self-start sm:self-auto"
+        >
+          <Clock size={15} />
+          <span>Log Past Task</span>
+        </button>
       </div>
+
+      {/* Success Notification Banner */}
+      <AnimatePresence>
+        {successToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-8 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-900 text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 shadow-xs"
+          >
+            <div className="flex items-center gap-2.5">
+              <CheckCircle size={18} className="text-emerald-600 shrink-0" />
+              <span>{successToast}</span>
+            </div>
+            <button
+              onClick={() => setSuccessToast(null)}
+              className="text-emerald-700 hover:text-emerald-900 text-xs font-bold px-2 py-1 rounded-lg hover:bg-emerald-500/10 cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Tabs Menu */}
       <div className="flex flex-wrap gap-2 md:gap-4 border-b border-slate-200 pb-px mb-8">
@@ -268,12 +306,28 @@ export default function HistoryPage() {
                     <p className="text-slate-400 text-sm mt-1 max-w-sm">
                       You haven't recorded minutes for any chores on {selectedDate}.
                     </p>
+                    <button
+                      onClick={() => setIsPastModalOpen(true)}
+                      className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold hover:bg-violet-500 transition-all cursor-pointer shadow-md shadow-violet-500/20 active:scale-95"
+                    >
+                      <Plus size={14} />
+                      Log Time for {selectedDate}
+                    </button>
                   </GlassCard>
                 ) : (
                   <div className="space-y-4">
-                    <h3 className="text-lg font-bold text-slate-400 uppercase tracking-wider mb-2">
-                      Daily Summary - {selectedDate} ({dateLogs.length} chores logged)
-                    </h3>
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <h3 className="text-lg font-bold text-slate-400 uppercase tracking-wider">
+                        Daily Summary - {selectedDate} ({dateLogs.length} chores logged)
+                      </h3>
+                      <button
+                        onClick={() => setIsPastModalOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-bold border border-violet-200 transition-all cursor-pointer"
+                      >
+                        <Plus size={13} />
+                        Log for {selectedDate}
+                      </button>
+                    </div>
                     <div className="space-y-4">
                       {dateLogs.map((log) => {
                         if (!log.chore) return null;
@@ -574,6 +628,31 @@ export default function HistoryPage() {
           )}
         </AnimatePresence>
       )}
+
+      {/* Log Past Task Quick Modal */}
+      <LogPastTaskModal
+        isOpen={isPastModalOpen}
+        onClose={() => setIsPastModalOpen(false)}
+        chores={chores}
+        defaultDate={activeTab === "date" ? selectedDate : undefined}
+        onSuccess={(msg) => {
+          if (activeTab === "date") {
+            fetchDateLogs(selectedDate);
+          } else if (activeTab === "month") {
+            fetchMonthLogs(selectedMonth);
+          } else if (activeTab === "chore" && selectedChoreId) {
+            fetchChoreLogs(selectedChoreId);
+          }
+          api.get("/logs/stats").then((res) => {
+            if (res.data.availableMonths) setAvailableMonths(res.data.availableMonths);
+          }).catch(() => {});
+
+          if (msg) {
+            setSuccessToast(msg);
+            setTimeout(() => setSuccessToast(null), 4500);
+          }
+        }}
+      />
     </main>
   );
 }
